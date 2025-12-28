@@ -6,6 +6,8 @@ import java.sql.SQLException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class Db {
   private Db() {}
@@ -85,10 +87,64 @@ public final class Db {
 
     StringBuilder jdbc = new StringBuilder();
     jdbc.append("jdbc:postgresql://").append(host).append(":").append(port).append("/").append(db);
-    if (uri.getQuery() != null && !uri.getQuery().isBlank()) {
-      jdbc.append("?").append(uri.getQuery());
+    String normalizedQuery = normalizeQueryForJdbc(uri.getQuery());
+    if (normalizedQuery != null && !normalizedQuery.isBlank()) {
+      jdbc.append("?").append(normalizedQuery);
     }
     return new DbInfo(jdbc.toString(), user, password);
+  }
+
+  private static String normalizeQueryForJdbc(String rawQuery) {
+    if (rawQuery == null) return null;
+    String q = rawQuery.trim();
+    if (q.isEmpty()) return null;
+
+    List<String> out = new ArrayList<>();
+    for (String part : q.split("&")) {
+      if (part.isEmpty()) continue;
+      String[] kv = part.split("=", 2);
+      String key = urlDecode(kv[0]);
+      String value = kv.length == 2 ? urlDecode(kv[1]) : "";
+
+      // Neon/libpq uses channel_binding; PostgreSQL JDBC uses channelBinding.
+      if ("channel_binding".equalsIgnoreCase(key)) key = "channelBinding";
+
+      out.add(urlEncode(key) + (kv.length == 2 ? "=" + urlEncode(value) : ""));
+    }
+    return String.join("&", out);
+  }
+
+  private static String urlDecode(String s) {
+    return URLDecoder.decode(s, StandardCharsets.UTF_8);
+  }
+
+  private static String urlEncode(String s) {
+    StringBuilder b = new StringBuilder();
+    for (int i = 0; i < s.length(); i++) {
+      char ch = s.charAt(i);
+      if (isUnreserved(ch)) {
+        b.append(ch);
+      } else {
+        byte[] bytes = String.valueOf(ch).getBytes(StandardCharsets.UTF_8);
+        for (byte by : bytes) {
+          b.append('%');
+          String hex = Integer.toHexString(by & 0xFF).toUpperCase();
+          if (hex.length() == 1) b.append('0');
+          b.append(hex);
+        }
+      }
+    }
+    return b.toString();
+  }
+
+  private static boolean isUnreserved(char ch) {
+    return (ch >= 'a' && ch <= 'z')
+        || (ch >= 'A' && ch <= 'Z')
+        || (ch >= '0' && ch <= '9')
+        || ch == '-'
+        || ch == '.'
+        || ch == '_'
+        || ch == '~';
   }
 
   public static Connection getConnection() throws SQLException {

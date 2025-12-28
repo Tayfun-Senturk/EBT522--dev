@@ -2,6 +2,7 @@
 /tools/
 /.idea/
 /.vscode/
+.env
 *.iml
 *.class
 *.log

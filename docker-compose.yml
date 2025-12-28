@@ -14,9 +14,9 @@ services:
   app:
     build: .
     environment:
-      DATABASE_URL: postgres://ebt522:ebt522@db:5432/ebt522_social
+      # Local default uses the `db` container. Override by setting DATABASE_URL in a `.env` file.
+      DATABASE_URL: ${DATABASE_URL:-postgresql://ebt522:ebt522@db:5432/ebt522_social}
     ports:
       - "8080:8080"
     depends_on:
       - db
-
