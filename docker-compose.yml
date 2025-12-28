@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ebt522_social
+      POSTGRES_USER: ebt522
+      POSTGRES_PASSWORD: ebt522
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgres://ebt522:ebt522@db:5432/ebt522_social
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+

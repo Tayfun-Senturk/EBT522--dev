@@ -1,0 +1,53 @@
+<%@ page import="tr.edu.ebt522.social.web.SessionKeys" %>
+<%@ page import="tr.edu.ebt522.social.model.User" %>
+<%
+  User auth = (User) session.getAttribute(SessionKeys.AUTH_USER);
+  String flashOk = (String) session.getAttribute(SessionKeys.FLASH_OK);
+  String flashError = (String) session.getAttribute(SessionKeys.FLASH_ERROR);
+  if (flashOk != null) session.removeAttribute(SessionKeys.FLASH_OK);
+  if (flashError != null) session.removeAttribute(SessionKeys.FLASH_ERROR);
+%>
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= request.getAttribute("pageTitle") != null ? request.getAttribute("pageTitle") : "EBT 522 Sosyal Paylaşım" %></title>
+    <link rel="stylesheet" href="<%= request.getContextPath() %>/assets/css/style.css">
+    <script defer src="<%= request.getContextPath() %>/assets/js/app.js"></script>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="container">
+        <div class="nav">
+          <a class="brand" href="<%= request.getContextPath() %>/home">
+            <span class="brand-badge" aria-hidden="true"></span>
+            <span>EBT 522 • Sosyal Paylaşım</span>
+          </a>
+          <div class="navlinks">
+            <a class="pill" href="<%= request.getContextPath() %>/home">Anasayfa</a>
+            <% if (auth == null) { %>
+              <a class="pill" href="<%= request.getContextPath() %>/register">Kişi Kayıt</a>
+              <a class="pill" href="<%= request.getContextPath() %>/login">Oturum Açma</a>
+            <% } %>
+            <a class="pill" href="<%= request.getContextPath() %>/forum">Forum</a>
+            <a class="pill" href="<%= request.getContextPath() %>/people">Kişiler</a>
+            <a class="pill" href="<%= request.getContextPath() %>/photos">Fotoğraflar</a>
+            <a class="pill" href="<%= request.getContextPath() %>/videos">Videolar</a>
+            <a class="pill" href="<%= request.getContextPath() %>/activity">Kim, Nerede, Ne Yapıyor?</a>
+            <a class="pill" href="<%= request.getContextPath() %>/map">Harita</a>
+            <% if (auth != null) { %>
+              <span class="pill primary"><%= auth.getFullName() %> (<%= auth.getRole() %>)</span>
+              <a class="pill danger" href="<%= request.getContextPath() %>/logout">Çıkış</a>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+    <main class="container">
+      <% if (flashOk != null) { %>
+        <div class="flash ok"><%= flashOk %></div>
+      <% } %>
+      <% if (flashError != null) { %>
+        <div class="flash error"><%= flashError %></div>
+      <% } %>
