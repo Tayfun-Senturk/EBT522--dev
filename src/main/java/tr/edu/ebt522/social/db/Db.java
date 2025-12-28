@@ -8,9 +8,12 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class Db {
   private Db() {}
+
+  private static final AtomicBoolean LOGGED_ONCE = new AtomicBoolean(false);
 
   private static String firstNonBlank(String... candidates) {
     if (candidates == null) return null;
@@ -33,12 +36,22 @@ public final class Db {
   }
 
   private static DbInfo resolve() {
-    String rawUrl =
-        firstNonBlank(
-            System.getProperty("db.url"),
-            System.getenv("DB_URL"),
-            System.getenv("JDBC_DATABASE_URL"),
-            System.getenv("DATABASE_URL"));
+    String sysPropUrl = System.getProperty("db.url");
+    String envDbUrl = System.getenv("DB_URL");
+    String envJdbcDatabaseUrl = System.getenv("JDBC_DATABASE_URL");
+    String envDatabaseUrl = System.getenv("DATABASE_URL");
+
+    String rawUrl = firstNonBlank(sysPropUrl, envDbUrl, envJdbcDatabaseUrl, envDatabaseUrl);
+    String source =
+        rawUrl == null
+            ? "fallback"
+            : rawUrl.equals(sysPropUrl)
+                ? "system:db.url"
+                : rawUrl.equals(envDbUrl)
+                    ? "env:DB_URL"
+                    : rawUrl.equals(envJdbcDatabaseUrl)
+                        ? "env:JDBC_DATABASE_URL"
+                        : "env:DATABASE_URL";
 
     String user = firstNonBlank(System.getProperty("db.user"), System.getenv("DB_USER"));
     String password = firstNonBlank(System.getProperty("db.password"), System.getenv("DB_PASSWORD"));
@@ -48,12 +61,16 @@ public final class Db {
       if (parsed != null) {
         if (user == null) user = parsed.user;
         if (password == null) password = parsed.password;
-        return new DbInfo(parsed.jdbcUrl, firstNonBlank(user, "postgres"), firstNonBlank(password, "postgres"));
+        DbInfo info = new DbInfo(parsed.jdbcUrl, firstNonBlank(user, "postgres"), firstNonBlank(password, "postgres"));
+        logOnce(source, info);
+        return info;
       }
     }
 
     String fallbackUrl = "jdbc:postgresql://localhost:5432/ebt522_social";
-    return new DbInfo(fallbackUrl, firstNonBlank(user, "postgres"), firstNonBlank(password, "postgres"));
+    DbInfo info = new DbInfo(fallbackUrl, firstNonBlank(user, "postgres"), firstNonBlank(password, "postgres"));
+    logOnce(source, info);
+    return info;
   }
 
   private static DbInfo parseDatabaseUrl(String raw) {
@@ -145,6 +162,13 @@ public final class Db {
         || ch == '.'
         || ch == '_'
         || ch == '~';
+  }
+
+  private static void logOnce(String source, DbInfo info) {
+    if (!LOGGED_ONCE.compareAndSet(false, true)) return;
+    String safeUser = info.user == null ? "" : info.user;
+    String safeJdbc = info.jdbcUrl == null ? "" : info.jdbcUrl;
+    System.err.println("[DB] source=" + source + " jdbcUrl=" + safeJdbc + " user=" + safeUser);
   }
 
   public static Connection getConnection() throws SQLException {
